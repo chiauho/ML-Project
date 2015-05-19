@@ -1,0 +1,75 @@
+##Executive Summary          
+Six participants were asked to perform barbell lifts correctly and incorrectly in 5 different ways.Accelerometers were attached to the dumbbells, arm, forearm and belt of the participants to capture the movements. The goal of this project is to use the data captured to predict the manner in which they did the exercise.This is the "classe" variable in the data. "A" means the participant did the exercise correctly. "B" to "E" correspond to common mistakes.      
+In this project we explored 2 prediction methods - decision tree and random forest. As expected random forest is a more accurate prediction machine which we adopted on the final test sets.It has an out of sample accuracy of 0.9983.
+
+##Loading Data and cleaning it       
+```{r}
+#Load required libraries
+library(caret)
+library(randomForest)
+library(ggplot2)
+library(rattle)
+library(rpart)
+#Set the set for repeatability by others
+set.seed(7638)
+#Load data in directory.
+traindata <- read.csv("pml-training.csv",header=TRUE)
+testdata <- read.csv("pml-testing.csv",header=TRUE)
+str(traindata)
+```
+From the data we see that there are many NAs and also DIV/0. These will be removed to produce a tidy data.      
+```{r}
+#Remove columns with NA & DIV/0
+cleantraindata <- traindata[,colSums(is.na(traindata))==0]
+cleantraindata<-cleantraindata[,colSums(cleantraindata=="#DIV/0!")==0]
+cleantestdata <- testdata[,colSums(is.na(testdata))==0]
+cleantestdata<-cleantestdata[,colSums(cleantestdata=="#DIV/0!")==0]
+```
+The data is now down to 60 variables.            
+                    
+##Splitting data into training and testing set for cross validation     
+```{r}
+#Partition cleantraindata into training set and test set
+x <- createDataPartition(cleantraindata$classe,p=0.7,list=FALSE)
+training <- cleantraindata[x,]
+testing <- cleantraindata[-x,]
+dim(training); dim(testing)
+```
+We chose a split of 70/30 to produce training and test sets from the original training set for cross validation purpose. Let's examine the data using the training set              
+```{r, echo=FALSE}
+plot(training$classe,main="Plot of classe variable",xlab="classe",ylab="index")
+```
+                       
+Indeed the classe variable is factor "A" to "E".        
+Now we perform the 2 predictions. For each we test the model against the testing set created from the original pml-training.csv data. Then we compare the 2 prediction machine and select the more accurate one. We use confusionMatrix to compute the accuracy.         
+            
+##Prediction 1 - Decision Tree         
+```{r}
+#Use decision tree to predict. Remove 1st column to avoid confusing ML
+#Note that somehow using the train() function from caret package the rpart runs very slowly compared to using rpart(). 
+tree.model <- rpart(classe ~ ., data=training[2:60], method="class")
+tree.predict <- predict(tree.model,newdata=testing[2:60],type="class")
+confusionMatrix(tree.predict,testing$classe)
+```
+The out of sample accuracy as noted for this model is 0.863. Let's plot the decision tree.    
+```{r}
+#Plot tree
+fancyRpartPlot(tree.model)
+```
+             
+##Prediction 2 - Random Forest        
+```{r}
+#Use randomForest to predict
+#Again for some reason using the caret package the RandomForest executes very slowly.
+rf.model <- randomForest(classe ~. , data=training[2:60])
+rf.predict <- predict(rf.model,testing[2:60],type="class")
+confusionMatrix(rf.predict,testing$classe)
+```
+The out of sample accuracy of Random Forest is 0.9983 which is much more accurate than Decision Tree. This is to be expected. We will use this model to predict the actual test data.   
+       
+##Conclusion      
+Two models were generated, one using Decision Tree and the other the Random Forest. The Random Forest was picked over Decision Tree as it was more accurate, having an out of sample accuracy of 0.9983 versus 0.863 using the Tree.    
+
+
+
+
